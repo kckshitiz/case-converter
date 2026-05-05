@@ -1,1 +1,385 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Case Converter</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: radial-gradient(ellipse at top, #2a1305 0%, #1a0a02 60%, #0d0501 100%);
+    color: #f1f1f1;
+  }
+  .page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 24px 24px;
+  }
+  h1 {
+    text-align: center;
+    font-size: 28px;
+    font-weight: 600;
+    margin: 0 0 32px;
+    color: #ffd9b3;
+    letter-spacing: 0.5px;
+  }
+  .card {
+    background: rgba(0, 0, 0, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    padding: 16px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+  }
+  textarea {
+    width: 100%;
+    min-height: 320px;
+    resize: vertical;
+    background: #0a0500;
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 14px;
+    font-family: inherit;
+    font-size: 15px;
+    line-height: 1.6;
+    outline: none;
+    transition: border-color .15s ease;
+  }
+  textarea:focus { border-color: #d97a3a; box-shadow: 0 0 0 3px rgba(217, 122, 58, 0.15); }
+
+  .toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 12px;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .actions { display: flex; gap: 8px; }
+  .icon-btn {
+    width: 38px;
+    height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #2a2a2a;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 6px;
+    color: #ddd;
+    cursor: pointer;
+    transition: all .15s ease;
+  }
+  .icon-btn:hover { background: #3a3a3a; color: #fff; }
+  .icon-btn:active { transform: scale(0.95); }
+  .icon-btn svg { width: 18px; height: 18px; }
+  .stats {
+    font-size: 13px;
+    color: #b8b8b8;
+  }
+
+  .settings {
+    margin-top: 12px;
+    padding: 12px 14px;
+    border: 1px dashed rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.02);
+    display: none;
+    font-size: 13px;
+    color: #ccc;
+  }
+  .settings.open { display: block; }
+  .settings label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+
+  .cases {
+    margin-top: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .case {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #1f1f1f;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 6px;
+    padding: 6px 12px 6px 6px;
+    color: #e8e8e8;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all .15s ease;
+  }
+  .case:hover { background: #2a2a2a; }
+  .case .badge {
+    width: 26px;
+    height: 26px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 11px;
+    color: #fff;
+  }
+  .case[data-case="sentence"] .badge { background: #b8541f; }
+  .case[data-case="lower"] .badge { background: #4a7c2a; }
+  .case[data-case="upper"] .badge { background: #1f6b8a; }
+  .case[data-case="capitalized"] .badge { background: #6a3aa3; }
+  .case[data-case="alternating"] .badge { background: #b8861f; color: #1a1000; }
+  .case[data-case="title"] .badge { background: #1f8a6b; }
+  .case[data-case="inverse"] .badge { background: #a3367a; }
+
+  .case.active {
+    border-color: #d97a3a;
+    box-shadow: 0 0 0 2px rgba(217, 122, 58, 0.25);
+    background: #2a1f15;
+  }
+
+  .coffee {
+    background: linear-gradient(180deg, #e2752a, #c25e1a);
+    color: #fff;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    text-decoration: none;
+    font-size: 14px;
+  }
+  .coffee:hover { filter: brightness(1.08); }
+
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #2a2a2a;
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 6px;
+    font-size: 13px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    opacity: 0;
+    transition: all .25s ease;
+    pointer-events: none;
+    z-index: 1000;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  @media (max-width: 600px) {
+    .page { padding: 20px 12px; }
+    h1 { font-size: 22px; margin-bottom: 20px; }
+    .toolbar { flex-direction: column; align-items: flex-start; }
+    .stats { font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Case Converter</h1>
+
+  <div class="card">
+    <textarea id="input" placeholder="Type or paste your text here..." spellcheck="false"></textarea>
+
+    <div class="toolbar">
+      <div class="actions">
+        <button class="icon-btn" id="copy" title="Copy" aria-label="Copy">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </button>
+        <button class="icon-btn" id="share" title="Share" aria-label="Share">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        </button>
+        <button class="icon-btn" id="download" title="Download" aria-label="Download">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </button>
+        <button class="icon-btn" id="clear" title="Clear" aria-label="Clear">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
+        </button>
+        <button class="icon-btn" id="settings-btn" title="Settings" aria-label="Settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+      </div>
+      <div class="stats" id="stats">Character Count: 0 | Word Count: 0 | Line Count: 0</div>
+    </div>
+
+    <div class="settings" id="settings-panel">
+      <label><input type="checkbox" id="live-toggle" checked /> Convert as I type (live conversion)</label>
+    </div>
+
+    <div class="cases" id="cases">
+      <button class="case" data-case="sentence"><span class="badge">Sc</span>Sentence case</button>
+      <button class="case" data-case="lower"><span class="badge">lc</span>lower case</button>
+      <button class="case" data-case="upper"><span class="badge">UC</span>UPPER CASE</button>
+      <button class="case" data-case="capitalized"><span class="badge">CC</span>Capitalized Case</button>
+      <button class="case" data-case="alternating"><span class="badge">aC</span>aLtErNaTiNg cAsE</button>
+      <button class="case" data-case="title"><span class="badge">TC</span>Title Case</button>
+      <button class="case" data-case="inverse"><span class="badge">iC</span>InVeRsE CaSe</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">Copied!</div>
+
+<script>
+(function () {
+  const input = document.getElementById('input');
+  const stats = document.getElementById('stats');
+  const cases = document.getElementById('cases');
+  const toast = document.getElementById('toast');
+  const settingsBtn = document.getElementById('settings-btn');
+  const settingsPanel = document.getElementById('settings-panel');
+  const liveToggle = document.getElementById('live-toggle');
+
+  let activeCase = null;
+
+  const converters = {
+    sentence: (s) => {
+      const lower = s.toLowerCase();
+      return lower.replace(/(^\s*|[.!?]\s+)([a-z])/g, (m, p, c) => p + c.toUpperCase());
+    },
+    lower: (s) => s.toLowerCase(),
+    upper: (s) => s.toUpperCase(),
+    capitalized: (s) => s.toLowerCase().replace(/\b([a-z])/g, (m, c) => c.toUpperCase()),
+    alternating: (s) => {
+      let i = 0;
+      return s.split('').map(ch => {
+        if (/[a-zA-Z]/.test(ch)) {
+          const out = i % 2 === 0 ? ch.toLowerCase() : ch.toUpperCase();
+          i++;
+          return out;
+        }
+        return ch;
+      }).join('');
+    },
+    title: (s) => {
+      const small = new Set(['a','an','and','as','at','but','by','for','if','in','nor','of','on','or','so','the','to','up','yet','via']);
+      const tokens = s.toLowerCase().split(/(\s+)/);
+      const wordCount = tokens.filter(t => t.trim().length).length;
+      let idx = 0;
+      return tokens.map(t => {
+        if (!t.trim()) return t;
+        const isFirst = idx === 0;
+        const isLast = idx === wordCount - 1;
+        idx++;
+        if (!isFirst && !isLast && small.has(t)) return t;
+        return t.replace(/^([a-z])/, c => c.toUpperCase());
+      }).join('');
+    },
+    inverse: (s) => s.split('').map(c => {
+      if (c === c.toLowerCase() && c !== c.toUpperCase()) return c.toUpperCase();
+      if (c === c.toUpperCase() && c !== c.toLowerCase()) return c.toLowerCase();
+      return c;
+    }).join(''),
+  };
+
+  function updateStats(text) {
+    const chars = text.length;
+    const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+    const lines = text ? text.split(/\r\n|\r|\n/).length : 0;
+    stats.textContent = `Character Count: ${chars} | Word Count: ${words} | Line Count: ${lines}`;
+  }
+
+  function applyCase(name) {
+    if (!converters[name]) return;
+    input.value = converters[name](input.value);
+    updateStats(input.value);
+  }
+
+  function setActive(btn, name) {
+    document.querySelectorAll('.case').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    activeCase = name;
+  }
+
+  cases.addEventListener('click', (e) => {
+    const btn = e.target.closest('.case');
+    if (!btn) return;
+    const name = btn.dataset.case;
+    if (activeCase === name) {
+      setActive(null, null);
+    } else {
+      setActive(btn, name);
+      applyCase(name);
+    }
+  });
+
+  input.addEventListener('input', () => {
+    if (liveToggle.checked && activeCase) {
+      const cursor = input.selectionStart;
+      input.value = converters[activeCase](input.value);
+      try { input.setSelectionRange(cursor, cursor); } catch (e) {}
+    }
+    updateStats(input.value);
+  });
+
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toast.classList.remove('show'), 1600);
+  }
+
+  document.getElementById('copy').addEventListener('click', async () => {
+    if (!input.value) { showToast('Nothing to copy'); return; }
+    try {
+      await navigator.clipboard.writeText(input.value);
+      showToast('Copied to clipboard');
+    } catch (e) {
+      input.select();
+      document.execCommand('copy');
+      showToast('Copied');
+    }
+  });
+
+  document.getElementById('share').addEventListener('click', async () => {
+    const text = input.value;
+    if (!text) { showToast('Nothing to share'); return; }
+    if (navigator.share) {
+      try { await navigator.share({ text, title: 'Converted text' }); } catch (e) {}
+    } else {
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast('Copied (share not supported)');
+      } catch (e) { showToast('Share not supported'); }
+    }
+  });
+
+  document.getElementById('download').addEventListener('click', () => {
+    if (!input.value) { showToast('Nothing to download'); return; }
+    const blob = new Blob([input.value], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'converted-text.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('Downloaded');
+  });
+
+  document.getElementById('clear').addEventListener('click', () => {
+    input.value = '';
+    updateStats('');
+    setActive(null, null);
+    input.focus();
+  });
+
+  settingsBtn.addEventListener('click', () => {
+    settingsPanel.classList.toggle('open');
+  });
+
+  updateStats('');
+})();
+</script>
+</body>
+</html>
