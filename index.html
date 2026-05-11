@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -93,7 +92,16 @@
     color: #ccc;
   }
   .settings.open { display: block; }
-  .settings label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .settings label { display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 6px; }
+  .settings label:last-child { margin-bottom: 0; }
+  .settings .group-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #888;
+    margin: 10px 0 6px;
+  }
+  .settings .group-title:first-child { margin-top: 0; }
 
   .cases {
     margin-top: 16px;
@@ -133,6 +141,7 @@
   .case[data-case="alternating"] .badge { background: #b8861f; color: #1a1000; }
   .case[data-case="title"] .badge { background: #1f8a6b; }
   .case[data-case="inverse"] .badge { background: #a3367a; }
+  .case[data-case="distinct"] .badge { background: #c44a4a; }
 
   .case.active {
     border-color: #d97a3a;
@@ -140,22 +149,23 @@
     background: #2a1f15;
   }
 
-  .coffee {
-    background: linear-gradient(180deg, #e2752a, #c25e1a);
-    color: #fff;
-    border: none;
-    padding: 8px 14px;
-    border-radius: 6px;
-    font-weight: 600;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    margin-left: auto;
-    text-decoration: none;
-    font-size: 14px;
+  /* Tool actions (one-shot operations, not stateful case toggles) */
+  .tools {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
   }
-  .coffee:hover { filter: brightness(1.08); }
+  .tool-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #888;
+    align-self: center;
+    margin-right: 4px;
+  }
 
   .toast {
     position: fixed;
@@ -212,7 +222,14 @@
     </div>
 
     <div class="settings" id="settings-panel">
+      <div class="group-title">Case conversion</div>
       <label><input type="checkbox" id="live-toggle" checked /> Convert as I type (live conversion)</label>
+
+      <div class="group-title">Distinct list</div>
+      <label><input type="checkbox" id="distinct-case-insensitive" /> Case-insensitive (treat "Apple" and "apple" as the same)</label>
+      <label><input type="checkbox" id="distinct-trim" checked /> Trim whitespace on each line</label>
+      <label><input type="checkbox" id="distinct-ignore-empty" checked /> Remove empty lines</label>
+      <label><input type="checkbox" id="distinct-sort" /> Sort alphabetically</label>
     </div>
 
     <div class="cases" id="cases">
@@ -223,6 +240,11 @@
       <button class="case" data-case="alternating"><span class="badge">aC</span>aLtErNaTiNg cAsE</button>
       <button class="case" data-case="title"><span class="badge">TC</span>Title Case</button>
       <button class="case" data-case="inverse"><span class="badge">iC</span>InVeRsE CaSe</button>
+    </div>
+
+    <div class="tools">
+      <span class="tool-label">List tools</span>
+      <button class="case" data-case="distinct" id="distinct-btn"><span class="badge">DL</span>Distinct List</button>
     </div>
   </div>
 </div>
@@ -238,6 +260,11 @@
   const settingsBtn = document.getElementById('settings-btn');
   const settingsPanel = document.getElementById('settings-panel');
   const liveToggle = document.getElementById('live-toggle');
+  const distinctBtn = document.getElementById('distinct-btn');
+  const distinctCI = document.getElementById('distinct-case-insensitive');
+  const distinctTrim = document.getElementById('distinct-trim');
+  const distinctIgnoreEmpty = document.getElementById('distinct-ignore-empty');
+  const distinctSort = document.getElementById('distinct-sort');
 
   let activeCase = null;
 
@@ -281,6 +308,36 @@
     }).join(''),
   };
 
+  // Distinct list: split into lines, deduplicate (preserving first occurrence), with options.
+  function distinctList(s) {
+    if (!s) return { result: '', removed: 0, kept: 0 };
+    const lines = s.split(/\r\n|\r|\n/);
+    const seen = new Set();
+    const out = [];
+    const caseInsensitive = distinctCI.checked;
+    const trim = distinctTrim.checked;
+    const ignoreEmpty = distinctIgnoreEmpty.checked;
+
+    for (let line of lines) {
+      const processed = trim ? line.trim() : line;
+      if (ignoreEmpty && processed === '') continue;
+      const key = caseInsensitive ? processed.toLowerCase() : processed;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(processed);
+    }
+
+    if (distinctSort.checked) {
+      out.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+    }
+
+    return {
+      result: out.join('\n'),
+      removed: lines.length - out.length,
+      kept: out.length
+    };
+  }
+
   function updateStats(text) {
     const chars = text.length;
     const words = text.trim() ? text.trim().split(/\s+/).length : 0;
@@ -309,6 +366,24 @@
     } else {
       setActive(btn, name);
       applyCase(name);
+    }
+  });
+
+  // Distinct List is a one-shot action, not a stateful toggle like case conversion.
+  distinctBtn.addEventListener('click', () => {
+    if (!input.value) { showToast('Nothing to deduplicate'); return; }
+    const before = input.value.split(/\r\n|\r|\n/).length;
+    const { result, kept } = distinctList(input.value);
+    const removed = before - kept;
+    input.value = result;
+    updateStats(input.value);
+    // brief visual confirmation
+    distinctBtn.classList.add('active');
+    setTimeout(() => distinctBtn.classList.remove('active'), 500);
+    if (removed > 0) {
+      showToast(`Removed ${removed} duplicate${removed === 1 ? '' : 's'} · ${kept} kept`);
+    } else {
+      showToast(`No duplicates found · ${kept} line${kept === 1 ? '' : 's'}`);
     }
   });
 
